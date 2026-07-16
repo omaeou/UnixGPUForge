@@ -1,100 +1,77 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Http; // <-- Добавлено для работы Results.Ok и Results.BadRequest
-using UnixGPUForge.Daemon.Core.Interfaces;
+﻿using UnixGPUForge.Daemon.Core.Interfaces;
 using UnixGPUForge.Daemon.Core.Providers;
 using UnixGPUForge.Daemon.Core.Services;
-using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Регистрируем нашу видеокарту как Singleton
-builder.Services.AddSingleton<IGpuProvider, NvidiaGpuProvider>();
-
 builder.Services.AddHostedService<AutoProfileService>();
 
-// Настраиваем CORS для Vue
-builder.Services.AddCors(options => {
-    options.AddPolicy("AllowVueFront", policy => {
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+// Разрешаем CORS, чтобы Vue-клиент (обычно висящий на localhost:5173) мог стучаться к демону
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
+// Регистрируем наш NVML-провайдер как Singleton. 
+// Инициализация драйвера пройдет один раз при старте демона.
+builder.Services.AddSingleton<IGpuProvider, NvidiaGpuProvider>();
+
 var app = builder.Build();
-app.UseCors("AllowVueFront");
 
-// GET-эндпоинт: получение метрик
-app.MapGet("/api/gpu/metrics", (IGpuProvider gpu) => 
+app.UseCors();
+
+// --- GET: Метрики ---
+app.MapGet("/api/gpu/metrics", (IGpuProvider gpu) =>
 {
-    var mem = gpu.GetMemoryInfo();
-    var util = gpu.GetUtilization();
-    
-    return new {
-        Name = gpu.GetDeviceName(),
-        Temperature = gpu.GetCoreTemperature(),
-        PowerUsage = gpu.GetPowerUsage(),
-        powerLimitMax = gpu.GetPowerLimitConstraints().Max,
-        powerLimitMin = gpu.GetPowerLimitConstraints().Min,
-        CoreLoad = util.Gpu,
-        MemLoad = util.Memory,
-        VramUsed = mem.Used,
-        VramTotal = mem.Total
-    };
+    return Results.Ok(gpu.GetTelemetry());
 });
 
-app.MapGet("/api/gpu/powerlimit", (IGpuProvider gpu) => 
-{
-    var (min, max) = gpu.GetPowerLimitConstraints();
-    return new { Min = min, Max = max };
-});
-
-// POST-эндпоинт: установка лимита потребления
-app.MapPost("/api/gpu/powerlimit", (IGpuProvider gpu, PowerLimitRequest request) => 
+// --- POST: Лимит мощности ---
+app.MapPost("/api/gpu/powerlimit", (IGpuProvider gpu, PowerLimitRequest request) =>
 {
     bool success = gpu.SetPowerLimit(request.Watts);
-    
-    if (success)
-    {
-        Console.WriteLine($"[INFO] Power Limit set to {request.Watts}W");
-        return Results.Ok(new { success = true, message = $"Limit set to {request.Watts}W" });
-    }
-    
-    return Results.BadRequest(new { success = false, message = "Failed to set Power Limit. Are you running as root?" });
+    return success ? Results.Ok(new { success = true }) 
+                   : Results.BadRequest(new { success = false, message = "Failed to set power limit." });
 });
 
+// --- POST: Частоты ядра ---
 app.MapPost("/api/gpu/clocklock", (IGpuProvider gpu, ClockLockRequest request) => 
 {
-    // Минимальную частоту ставим на 200 МГц (базовая безопасность драйвера), 
-    // а максимальную фиксируем по ползунку
+    // Безопасный минимум 200 МГц, максимум берем из запроса
     bool success = gpu.SetGpuLockedClocks(200, request.MaxClock);
-    
-    if (success)
-    {
-        Console.WriteLine($"[INFO] Core Clock locked at {request.MaxClock} MHz");
-        return Results.Ok(new { success = true });
-    }
-    return Results.BadRequest(new { success = false, message = "Failed to lock core clock." });
+    return success ? Results.Ok(new { success = true }) 
+                   : Results.BadRequest(new { success = false, message = "Failed to lock core clock." });
 });
 
 app.MapPost("/api/gpu/clockreset", (IGpuProvider gpu) => 
 {
-    bool success = gpu.ResetGpuLockedClocks();
-    if (success) Console.WriteLine("[INFO] Core Clocks reset to default.");
-    
-    return success 
-        ? Results.Ok(new { success = true }) 
-        : Results.BadRequest(new { success = false, message = "Failed to reset clocks." });
+    return gpu.ResetGpuLockedClocks() ? Results.Ok(new { success = true }) 
+                                      : Results.BadRequest(new { success = false, message = "Failed to reset clocks." });
 });
 
-Console.WriteLine("=== UnixGPUForge Daemon API Started ===");
-Console.WriteLine("API is running on: http://localhost:5000/api/gpu/metrics");
+// --- POST: Частоты памяти ---
+app.MapPost("/api/gpu/memclocklock", (IGpuProvider gpu, ClockLockRequest request) => 
+{
+    // Безопасный минимум 400 МГц для памяти
+    bool success = gpu.SetMemoryLockedClocks(400, request.MaxClock);
+    return success ? Results.Ok(new { success = true }) 
+                   : Results.BadRequest(new { success = false, message = "Failed to lock memory clock." });
+});
 
-// Запуск сервера
+app.MapPost("/api/gpu/memclockreset", (IGpuProvider gpu) => 
+{
+    return gpu.ResetMemoryLockedClocks() ? Results.Ok(new { success = true }) 
+                                         : Results.BadRequest(new { success = false, message = "Failed to reset memory clocks." });
+});
+
+// Запускаем сервер на 5000 порту
 app.Run("http://localhost:5000");
 
-// ==========================================
-// Типы и структуры ВСЕГДА должны быть в самом низу файла
-// ==========================================
+// --- DTOs для запросов ---
 record PowerLimitRequest(uint Watts);
 record ClockLockRequest(uint MaxClock);
-

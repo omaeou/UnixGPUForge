@@ -5,6 +5,7 @@
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.AssemblyInfoInputs.cache
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.AssemblyInfo.cs
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.csproj.CoreCompileInputs.cache
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.sourcelink.json
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.dll
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/refint/UnixGPUForge.Shared.dll
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.pdb
