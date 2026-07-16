@@ -1,0 +1,68 @@
+:root {
+  --primary: #7aa2f7;
+  --primary-text: #d9e0ee;
+  --secondary-text: #988ba2;
+  --background-page: #1e1e2e;
+  --background-card: #2a2a3d;
+  --border-color: #3b3b54;
+}
+
+.home-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--background-page);
+  overflow: hidden;
+}
+
+/* Сайдбар из твоего "Форматера" */
+.sidebar {
+  width: 240px;
+  background-color: var(--background-card);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 8px;
+  transition: width 0.3s ease;
+}
+.sidebar.collapsed { width: 70px; }
+
+.sidebar-toggle { background: none; border: none; cursor: pointer; margin-bottom: 25px; align-self: center; }
+
+.sidebar-menu { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.sidebar-item {
+  display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+  border-radius: 8px; color: var(--primary-text); font-weight: 600;
+  cursor: pointer; transition: 0.2s; white-space: nowrap;
+}
+.sidebar-item:hover, .sidebar-item.active { background-color: var(--background-page); color: var(--primary); }
+.sidebar.collapsed .sidebar-item { justify-content: center; padding: 12px 0; gap: 0; }
+.sidebar.collapsed .sidebar-text { display: none; }
+
+/* Контент */
+.home-content { flex: 1; padding: 20px; overflow-y: auto; }
+
+.GpuInfo-card, .control-panel-card {
+  background: var(--background-card);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.slider { flex-grow: 1; cursor: pointer; accent-color: var(--primary); }
+.btn { background: var(--primary); color: var(--background-page); border: none; padding: 0.6rem 1.5rem; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.action-row { display: flex; justify-content: flex-end; }
+.slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  gap: 1.5rem;
+}
+
+.slider-label {
+  min-width: 160px;
+  white-space: nowrap;
+}

@@ -1,0 +1,36 @@
+/* Глобальные переменные переносим в :root, чтобы они были доступны везде */
+:root {
+  --primary: #7aa2f7;
+  --primary-text: #d9e0ee;
+  --secondary-text: #988ba2;
+  --background-page: #1e1e2e;
+  --background-card: #2a2a3d;
+  --border-color: #3b3b54;
+  --glow-color-default: rgba(122, 162, 247, 0.05);
+  --glow-color-hover: rgba(122, 162, 247, 0.25);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden; 
+  /* === ВОТ ГЛАВНЫЙ ФИКС === */
+  background-color: var(--background-page);
+  color: var(--primary-text); /* Текст везде будет нужного цвета по дефолту */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; /* Убиваем засечки */
+}
+
+/* Добавил #app, так как Vite+Vue использует его по умолчанию */
+#root, #app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}

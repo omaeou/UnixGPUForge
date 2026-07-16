@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="UnixGPUForge.Daemon/UnixGPUForge.Daemon.csproj" />
+  <Project Path="UnixGPUForge.Shared/UnixGPUForge.Shared.csproj" />
+</Solution>

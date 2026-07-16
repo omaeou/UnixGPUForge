@@ -1,0 +1,11 @@
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/bin/Debug/net10.0/UnixGPUForge.Shared.deps.json
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/bin/Debug/net10.0/UnixGPUForge.Shared.dll
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/bin/Debug/net10.0/UnixGPUForge.Shared.pdb
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.GeneratedMSBuildEditorConfig.editorconfig
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.AssemblyInfoInputs.cache
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.AssemblyInfo.cs
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.csproj.CoreCompileInputs.cache
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.dll
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/refint/UnixGPUForge.Shared.dll
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/UnixGPUForge.Shared.pdb
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/Debug/net10.0/ref/UnixGPUForge.Shared.dll
