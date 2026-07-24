@@ -1,29 +1,47 @@
-# ⚡ UnixGPUForge
+# UnixGPUForge
+*[Read in English](#english) | [Читать на русском](#русский-ru)*
 
-**UnixGPUForge** — это нативный инструмент для мониторинга и аппаратного тюнинга видеокарт NVIDIA в среде Linux. 
+<a id="english"></a>
+> **Advanced GPU Power Management, Overclocking, and Telemetry Daemon for Linux.**
 
-В отличие от устаревших решений, проект не полагается на X-сервер (и флаги вроде `Coolbits`), что делает его **полностью совместимым с Wayland**. Демон взаимодействует напрямую с драйвером через NVIDIA Management Library (NVML), обеспечивая низкоуровневый доступ к железу.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)
+![Vue.js](https://img.shields.io/badge/Vue.js-UI-4FC08D.svg)
 
-![UnixGPUForge UI Preview](https://via.placeholder.com/800x400.png?text=UI+Preview+Screenshot) <!-- Замени ссылку на реальный скриншот после пуша -->
+UnixGPUForge is a robust, daemonized system utility designed to bridge the gap in advanced GPU power management and telemetry on Linux environments. Unlike traditional CLI-only tools or monolithic GUI applications, UnixGPUForge operates as a highly privileged background service with a decoupled, lightweight web-based client, ensuring minimal overhead and maximum system stability.
 
-## ✨ Текущие возможности
+## 🏗 System Architecture
 
-* **📊 Мониторинг в реальном времени:** Отслеживание температуры, потребления (Watts), загрузки ядра и использования видеопамяти.
-* **⚡ Управление Power Limit:** Динамическое изменение лимита энергопотребления с автоматическим чтением безопасных аппаратных границ (Min/Max) из vBIOS видеокарты.
-* **🔒 Core Clock Lock:** Жесткая фиксация максимальной частоты ядра для идеального андервольта и ровного фреймтайма в играх.
-* **💾 Memory Clock Lock:** Управление абсолютной частотой видеопамяти (GDDR6/GDDR6X).
-* **🎨 Современный интерфейс:** Легковесный клиент на Vue.js с адаптивным дизайном и темной темой, созданный специально для удобной настройки параметров "на лету".
+The project is strictly divided into a Client-Server architecture to maintain system security and stability while interacting with low-level kernel interfaces.
 
-## 🛠 Технологический стек
+1. **UnixGPUForge.Daemon (C# / .NET 10.0)**
+   - Runs as a `systemd` background service with necessary privileges to access `/sys/class/drm`, NVML, and proprietary driver interfaces.
+   - Handles continuous hardware polling, telemetry aggregation (`GpuTelemetry.cs`), and state enforcement without user session dependency.
+   - Exposes a secure local REST/gRPC API for client interactions.
 
-* **Daemon (Backend):** C# (.NET 10 SDK), P/Invoke для `libnvidia-ml.so`.
-* **Client (Frontend):** Vue.js 3, Vite, Lucide Icons.
+2. **UnixGPUForge.Client (Vue.js / Vite)**
+   - A reactive, zero-overhead frontend that communicates with the local daemon.
+   - Provides real-time visualization of GPU metrics (Temperatures, Core/Memory Clocks, Power Draw, Fan Speeds).
 
-## 🚀 Установка и запуск
+## ✨ Key Features
 
-Для работы утилиты требуются установленные проприетарные драйверы NVIDIA, а также `.NET 10 SDK` и `Node.js`.
+- **Hardware-Level Access:** Direct interfacing with NVIDIA GPUs (`NvidiaGpuProvider`) for precise telemetry and tuning.
+- **Auto-Profiling Service:** Dynamic, rule-based profile switching (`AutoProfileService`) based on current system load or running applications (`GameProfile`).
+- **Headless Operation:** The daemon maintains custom fan curves and undervolting states even when no X11/Wayland session is active.
+- **Cross-Driver Abstraction:** Designed with extensibility in mind via the `IGpuProvider` interface to seamlessly support different vendor architectures in the future.
 
-### 1. Подготовка системы (Persistence Mode)
-Для корректной работы лимитов и частот драйвер NVIDIA не должен сбрасывать свое состояние. Включите режим постоянной работы:
-```bash
-sudo nvidia-smi -pm 1
+## 🚀 Getting Started
+
+### Prerequisites
+- Linux OS (Kernel 5.15+)
+- .NET 10.0 SDK
+- Node.js & npm (for building the client)
+- Proprietary NVIDIA drivers (for full feature support)
+
+### Building from Source
+
+1. **Build the Daemon:**
+   ```bash
+   cd UnixGPUForge.Daemon
+   dotnet build -c Release
