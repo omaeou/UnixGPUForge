@@ -47,6 +47,7 @@ The project is strictly divided into a Client-Server architecture to maintain sy
    dotnet build -c Release
 </a>
 <a id="russian">
+   
 # UnixGPUForge
 
 > **Продвинутый демон управления питанием, разгоном и телеметрией GPU для Linux.**
