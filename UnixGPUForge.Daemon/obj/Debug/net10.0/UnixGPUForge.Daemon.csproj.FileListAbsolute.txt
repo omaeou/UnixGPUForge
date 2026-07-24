@@ -64,3 +64,4 @@
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Daemon/obj/Debug/net10.0/UnixGPUForge.Daemon.pdb
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Daemon/obj/Debug/net10.0/UnixGPUForge.Daemon.genruntimeconfig.cache
 /home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Daemon/obj/Debug/net10.0/ref/UnixGPUForge.Daemon.dll
+/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Daemon/bin/Debug/net10.0/profiles.json

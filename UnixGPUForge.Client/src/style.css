@@ -34,3 +34,17 @@ html, body {
   justify-content: center;
   min-height: 100vh;
 }
+
+.input-field {
+  background: var(--background-page);
+  border: 1px solid var(--border-color);
+  color: var(--primary-text);
+  padding: 0.6rem;
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+}

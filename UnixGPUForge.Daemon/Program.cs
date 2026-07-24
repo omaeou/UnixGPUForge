@@ -1,6 +1,8 @@
 ﻿using UnixGPUForge.Daemon.Core.Interfaces;
 using UnixGPUForge.Daemon.Core.Providers;
 using UnixGPUForge.Daemon.Core.Services;
+using System.Text.Json;
+using UnixGPUForge.Shared.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,12 +11,13 @@ builder.Services.AddHostedService<AutoProfileService>();
 // Разрешаем CORS, чтобы Vue-клиент (обычно висящий на localhost:5173) мог стучаться к демону
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+   options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+   policy.AllowAnyOrigin()
+    .AllowAnyHeader()
+    .AllowAnyMethod();
+});
+
 });
 
 // Регистрируем наш NVML-провайдер как Singleton. 
@@ -35,38 +38,54 @@ app.MapGet("/api/gpu/metrics", (IGpuProvider gpu) =>
 app.MapPost("/api/gpu/powerlimit", (IGpuProvider gpu, PowerLimitRequest request) =>
 {
     bool success = gpu.SetPowerLimit(request.Watts);
-    return success ? Results.Ok(new { success = true }) 
+    return success ? Results.Ok(new { success = true })
                    : Results.BadRequest(new { success = false, message = "Failed to set power limit." });
 });
 
 // --- POST: Частоты ядра ---
-app.MapPost("/api/gpu/clocklock", (IGpuProvider gpu, ClockLockRequest request) => 
+app.MapPost("/api/gpu/clocklock", (IGpuProvider gpu, ClockLockRequest request) =>
 {
     // Безопасный минимум 200 МГц, максимум берем из запроса
     bool success = gpu.SetGpuLockedClocks(200, request.MaxClock);
-    return success ? Results.Ok(new { success = true }) 
+    return success ? Results.Ok(new { success = true })
                    : Results.BadRequest(new { success = false, message = "Failed to lock core clock." });
 });
 
-app.MapPost("/api/gpu/clockreset", (IGpuProvider gpu) => 
+app.MapPost("/api/gpu/clockreset", (IGpuProvider gpu) =>
 {
-    return gpu.ResetGpuLockedClocks() ? Results.Ok(new { success = true }) 
+    return gpu.ResetGpuLockedClocks() ? Results.Ok(new { success = true })
                                       : Results.BadRequest(new { success = false, message = "Failed to reset clocks." });
 });
 
 // --- POST: Частоты памяти ---
-app.MapPost("/api/gpu/memclocklock", (IGpuProvider gpu, ClockLockRequest request) => 
+app.MapPost("/api/gpu/memclocklock", (IGpuProvider gpu, ClockLockRequest request) =>
 {
     // Безопасный минимум 400 МГц для памяти
     bool success = gpu.SetMemoryLockedClocks(400, request.MaxClock);
-    return success ? Results.Ok(new { success = true }) 
+    return success ? Results.Ok(new { success = true })
                    : Results.BadRequest(new { success = false, message = "Failed to lock memory clock." });
 });
 
-app.MapPost("/api/gpu/memclockreset", (IGpuProvider gpu) => 
+app.MapPost("/api/gpu/memclockreset", (IGpuProvider gpu) =>
 {
-    return gpu.ResetMemoryLockedClocks() ? Results.Ok(new { success = true }) 
+    return gpu.ResetMemoryLockedClocks() ? Results.Ok(new { success = true })
                                          : Results.BadRequest(new { success = false, message = "Failed to reset memory clocks." });
+});
+
+app.MapGet("/api/profiles", () =>
+{
+    if (!File.Exists("profiles.json")) return Results.Ok(new List<GameProfile>());
+    var json = File.ReadAllText("profiles.json");
+    var profiles = JsonSerializer.Deserialize<List<GameProfile>>(json);
+    return Results.Ok(profiles);
+});
+
+// --- POST: Сохранить профили ---
+app.MapPost("/api/profiles", (List<GameProfile> profiles) =>
+{
+    var json = JsonSerializer.Serialize(profiles, new JsonSerializerOptions { WriteIndented = true });
+    File.WriteAllText("profiles.json", json);
+    return Results.Ok(new { success = true });
 });
 
 // Запускаем сервер на 5000 порту

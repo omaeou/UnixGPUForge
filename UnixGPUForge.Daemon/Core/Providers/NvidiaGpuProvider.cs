@@ -25,6 +25,15 @@ public partial class NvidiaGpuProvider : IGpuProvider
         public ulong used;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct nvmlProcessInfo_t //[cite: 1]
+    {
+        public uint pid;
+        public ulong usedGpuMemory;
+        public uint gpuInstanceId;
+        public uint computeInstanceId;
+    }
+
     // --- ИМПОРТЫ C-ФУНКЦИЙ NVML ---
     
     [LibraryImport(NvmlLibrary, EntryPoint = "nvmlInit_v2")]
@@ -69,8 +78,11 @@ public partial class NvidiaGpuProvider : IGpuProvider
     [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceResetMemoryLockedClocks")]
     private static partial int NvmlDeviceResetMemoryLockedClocks(IntPtr device); //[cite: 1]
 
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetComputeRunningProcesses")]
-    private static partial int NvmlDeviceGetComputeRunningProcesses(IntPtr device, ref uint count, [Out] IntPtr[] infos);
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetGraphicsRunningProcesses_v3")]
+    private static partial int NvmlDeviceGetGraphicsRunningProcesses(IntPtr device, ref uint infoCount, [Out] nvmlProcessInfo_t[] infos); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetComputeRunningProcesses_v3")]
+    private static partial int NvmlDeviceGetComputeRunningProcesses(IntPtr device, ref uint infoCount, [Out] nvmlProcessInfo_t[] infos); //[cite: 1]
 
     public NvidiaGpuProvider()
     {
@@ -143,16 +155,34 @@ public partial class NvidiaGpuProvider : IGpuProvider
 
     public List<uint> GetRunningPids()
     {
-        uint count = 0;
-        // Сначала узнаем, сколько процессов сейчас запущено
-        NvmlDeviceGetComputeRunningProcesses(_deviceHandle, ref count, null); 
-        
-        if (count == 0) return new List<uint>();
+        var pids = new HashSet<uint>();
+        var dummy = Array.Empty<nvmlProcessInfo_t>();
 
-        // Выделяем массив под структуры процессов
-        IntPtr[] infos = new IntPtr[count]; 
-        // Здесь нужна логика маршалинга структуры nvmlProcessInfo_t
-        // ... (реализация получения списка PIDs)
-        return pids;
+        // 1. Собираем графические процессы
+        uint graphicsCount = 0;
+        int resGraphics = NvmlDeviceGetGraphicsRunningProcesses(_deviceHandle, ref graphicsCount, dummy);
+        // Код 7 = NVML_ERROR_INSUFFICIENT_SIZE (буфер мал, но мы узнали нужное количество)[cite: 1]
+        if (resGraphics == 7 && graphicsCount > 0)
+        {
+            var graphicsInfos = new nvmlProcessInfo_t[graphicsCount];
+            if (NvmlDeviceGetGraphicsRunningProcesses(_deviceHandle, ref graphicsCount, graphicsInfos) == 0)
+            {
+                foreach (var info in graphicsInfos) pids.Add(info.pid);
+            }
+        }
+
+        // 2. Собираем вычислительные (Compute) процессы
+        uint computeCount = 0;
+        int resCompute = NvmlDeviceGetComputeRunningProcesses(_deviceHandle, ref computeCount, dummy);
+        if (resCompute == 7 && computeCount > 0)
+        {
+            var computeInfos = new nvmlProcessInfo_t[computeCount];
+            if (NvmlDeviceGetComputeRunningProcesses(_deviceHandle, ref computeCount, computeInfos) == 0)
+            {
+                foreach (var info in computeInfos) pids.Add(info.pid);
+            }
+        }
+
+        return pids.ToList();
     }
 }
