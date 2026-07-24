@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UnixGPUForge.Shared")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f074fbd55d0ac82e655aa63ef69df4cf1c8776a8")]
 [assembly: System.Reflection.AssemblyProductAttribute("UnixGPUForge.Shared")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UnixGPUForge.Shared")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

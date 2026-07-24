@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.RegularExpressions;
 using UnixGPUForge.Daemon.Core.Interfaces;
+using UnixGPUForge.Shared.Models;
 
 namespace UnixGPUForge.Daemon.Core.Providers;
 
@@ -10,70 +9,123 @@ public partial class NvidiaGpuProvider : IGpuProvider
     private const string NvmlLibrary = "libnvidia-ml.so";
     private readonly IntPtr _deviceHandle;
 
+    // --- NVML СТРУКТУРЫ ИЗ ДОКУМЕНТАЦИИ ---
+    [StructLayout(LayoutKind.Sequential)]
+    private struct nvmlUtilization_t //[cite: 1]
+    {
+        public uint gpu;
+        public uint memory;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct nvmlMemory_t //[cite: 1]
+    {
+        public ulong total;
+        public ulong free;
+        public ulong used;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct nvmlProcessInfo_t //[cite: 1]
+    {
+        public uint pid;
+        public ulong usedGpuMemory;
+        public uint gpuInstanceId;
+        public uint computeInstanceId;
+    }
+
+    // --- ИМПОРТЫ C-ФУНКЦИЙ NVML ---
+    
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlInit_v2")]
+    private static partial int NvmlInit(); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlShutdown")]
+    private static partial int NvmlShutdown(); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetHandleByIndex_v2")]
+    private static partial int NvmlDeviceGetHandleByIndex(uint index, out IntPtr device); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetName", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int NvmlDeviceGetName(IntPtr device, IntPtr name, uint length); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetTemperature")]
+    private static partial int NvmlDeviceGetTemperature(IntPtr device, uint sensorType, out uint temp); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetPowerUsage")]
+    private static partial int NvmlDeviceGetPowerUsage(IntPtr device, out uint power); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetUtilizationRates")]
+    private static partial int NvmlDeviceGetUtilizationRates(IntPtr device, out nvmlUtilization_t utilization); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetMemoryInfo")]
+    private static partial int NvmlDeviceGetMemoryInfo(IntPtr device, out nvmlMemory_t memory); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetPowerManagementLimitConstraints")]
+    private static partial int NvmlDeviceGetPowerManagementLimitConstraints(IntPtr device, out uint minLimit, out uint maxLimit); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceSetPowerManagementLimit_v2")]
+    private static partial int NvmlDeviceSetPowerManagementLimit(IntPtr device, uint limit); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceSetGpuLockedClocks")]
+    private static partial int NvmlDeviceSetGpuLockedClocks(IntPtr device, uint minGpuClockMHz, uint maxGpuClockMHz); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceResetGpuLockedClocks")]
+    private static partial int NvmlDeviceResetGpuLockedClocks(IntPtr device); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceSetMemoryLockedClocks")]
+    private static partial int NvmlDeviceSetMemoryLockedClocks(IntPtr device, uint minMemClockMHz, uint maxMemClockMHz); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceResetMemoryLockedClocks")]
+    private static partial int NvmlDeviceResetMemoryLockedClocks(IntPtr device); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetGraphicsRunningProcesses_v3")]
+    private static partial int NvmlDeviceGetGraphicsRunningProcesses(IntPtr device, ref uint infoCount, [Out] nvmlProcessInfo_t[] infos); //[cite: 1]
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetComputeRunningProcesses_v3")]
+    private static partial int NvmlDeviceGetComputeRunningProcesses(IntPtr device, ref uint infoCount, [Out] nvmlProcessInfo_t[] infos); //[cite: 1]
+
     public NvidiaGpuProvider()
     {
-        if (NvmlInit() != 0) throw new Exception("Failed to initialize NVML.");
-        if (NvmlDeviceGetCount(out uint deviceCount) != 0 || deviceCount == 0) throw new Exception("No NVIDIA GPUs found.");
-        if (NvmlDeviceGetHandleByIndex(0, out _deviceHandle) != 0) throw new Exception("Failed to get GPU handle.");
+        if (NvmlInit() != 0)
+            throw new Exception("Не удалось инициализировать NVML драйвер.");
+
+        // Подхватываем первую видеокарту (индекс 0)
+        if (NvmlDeviceGetHandleByIndex(0, out _deviceHandle) != 0)
+            throw new Exception("Видеокарта NVIDIA не найдена.");
     }
 
-    public string GetDeviceName()
+    public GpuTelemetry GetTelemetry()
     {
-        unsafe
+        IntPtr namePtr = Marshal.AllocHGlobal(96); // NVML_DEVICE_NAME_V2_BUFFER_SIZE = 96[cite: 1]
+        string gpuName = "Unknown GPU";
+        if (NvmlDeviceGetName(_deviceHandle, namePtr, 96) == 0)
         {
-            byte* nameBytes = stackalloc byte[96];
-            if (NvmlDeviceGetName(_deviceHandle, nameBytes, 96) == 0)
-                return Encoding.ASCII.GetString(nameBytes, 96).TrimEnd('\0');
+            gpuName = Marshal.PtrToStringUTF8(namePtr) ?? gpuName;
         }
-        return "Unknown GPU";
-    }
+        Marshal.FreeHGlobal(namePtr);
 
-    public uint GetCoreTemperature()
-    {
-        if (NvmlDeviceGetTemperature(_deviceHandle, 0, out uint temp) == 0) return temp;
-        return 0;
-    }
+        NvmlDeviceGetTemperature(_deviceHandle, 0, out uint temp); // 0 = NVML_TEMPERATURE_GPU[cite: 1]
+        NvmlDeviceGetPowerUsage(_deviceHandle, out uint powerMw);
+        NvmlDeviceGetUtilizationRates(_deviceHandle, out nvmlUtilization_t util);
+        NvmlDeviceGetMemoryInfo(_deviceHandle, out nvmlMemory_t mem);
+        NvmlDeviceGetPowerManagementLimitConstraints(_deviceHandle, out uint minLimitMw, out uint maxLimitMw);
 
-    public uint GetPowerUsage()
-    {
-        // NVML возвращает потребление в милливаттах (mW), делим на 1000 для обычных Ватт
-        if (NvmlDeviceGetPowerUsage(_deviceHandle, out uint power) == 0) return power / 1000;
-        return 0;
-    }
-
-    public (uint Gpu, uint Memory) GetUtilization()
-    {
-        if (NvmlDeviceGetUtilizationRates(_deviceHandle, out NvmlUtilization util) == 0)
-            return (util.Gpu, util.Memory);
-        return (0, 0);
-    }
-
-    public (ulong Used, ulong Total) GetMemoryInfo()
-    {
-        if (NvmlDeviceGetMemoryInfo(_deviceHandle, out NvmlMemory mem) == 0)
-            // Возвращаем в Мегабайтах (делим байты на 1024*1024)
-            return (mem.Used / 1048576, mem.Total / 1048576); 
-        return (0, 0);
+        return new GpuTelemetry
+        {
+            Name = gpuName,
+            Temperature = temp,
+            PowerUsage = powerMw / 1000,
+            CoreLoad = util.gpu,
+            VramUsed = mem.used / (1024 * 1024),
+            VramTotal = mem.total / (1024 * 1024),
+            MinLimit = minLimitMw / 1000,
+            MaxLimit = maxLimitMw / 1000
+        };
     }
 
     public bool SetPowerLimit(uint watts)
     {
-        // Переводим Ватты обратно в милливатты
-        int result = NvmlDeviceSetPowerManagementLimit(_deviceHandle, watts * 1000);
-        if (result != 0)
-        {
-            Console.WriteLine($"[NVML ERROR] Failed to set power limit to {watts}W. NVML Error Code: {result}");
-        }
-        return result == 0;
-    }
-
-    public (uint Min, uint Max) GetPowerLimitConstraints()
-    {
-        if (NvmlDeviceGetPowerManagementLimitConstraints(_deviceHandle, out uint min, out uint max) == 0)
-        {
-            return (min / 1000, max / 1000); // Переводим из mW в Ватты
-        }
-        return (100, 350); // Fallback, если что-то пошло не так
+        return NvmlDeviceSetPowerManagementLimit(_deviceHandle, watts * 1000) == 0;
     }
 
     public bool SetGpuLockedClocks(uint minMHz, uint maxMHz)
@@ -86,60 +138,51 @@ public partial class NvidiaGpuProvider : IGpuProvider
         return NvmlDeviceResetGpuLockedClocks(_deviceHandle) == 0;
     }
 
-    // ==========================================
-    // C-Структуры для NVML
-    // ==========================================
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NvmlUtilization
+    public bool SetMemoryLockedClocks(uint minMHz, uint maxMHz)
     {
-        public uint Gpu;
-        public uint Memory;
+        return NvmlDeviceSetMemoryLockedClocks(_deviceHandle, minMHz, maxMHz) == 0;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NvmlMemory
+    public bool ResetMemoryLockedClocks()
     {
-        public ulong Total;
-        public ulong Free;
-        public ulong Used;
+        return NvmlDeviceResetMemoryLockedClocks(_deviceHandle) == 0;
+    }
+    public void Dispose()
+    {
+        NvmlShutdown(); // Корректно освобождаем ресурсы драйвера[cite: 1]
+        GC.SuppressFinalize(this);
     }
 
-    // ==========================================
-    // Нативные вызовы (LibraryImport)
-    // ==========================================
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlInit_v2")]
-    private static partial int NvmlInit();
+    public List<uint> GetRunningPids()
+    {
+        var pids = new HashSet<uint>();
+        var dummy = Array.Empty<nvmlProcessInfo_t>();
 
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetCount_v2")]
-    private static partial int NvmlDeviceGetCount(out uint deviceCount);
+        // 1. Собираем графические процессы
+        uint graphicsCount = 0;
+        int resGraphics = NvmlDeviceGetGraphicsRunningProcesses(_deviceHandle, ref graphicsCount, dummy);
+        // Код 7 = NVML_ERROR_INSUFFICIENT_SIZE (буфер мал, но мы узнали нужное количество)[cite: 1]
+        if (resGraphics == 7 && graphicsCount > 0)
+        {
+            var graphicsInfos = new nvmlProcessInfo_t[graphicsCount];
+            if (NvmlDeviceGetGraphicsRunningProcesses(_deviceHandle, ref graphicsCount, graphicsInfos) == 0)
+            {
+                foreach (var info in graphicsInfos) pids.Add(info.pid);
+            }
+        }
 
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetHandleByIndex_v2")]
-    private static partial int NvmlDeviceGetHandleByIndex(uint index, out IntPtr device);
+        // 2. Собираем вычислительные (Compute) процессы
+        uint computeCount = 0;
+        int resCompute = NvmlDeviceGetComputeRunningProcesses(_deviceHandle, ref computeCount, dummy);
+        if (resCompute == 7 && computeCount > 0)
+        {
+            var computeInfos = new nvmlProcessInfo_t[computeCount];
+            if (NvmlDeviceGetComputeRunningProcesses(_deviceHandle, ref computeCount, computeInfos) == 0)
+            {
+                foreach (var info in computeInfos) pids.Add(info.pid);
+            }
+        }
 
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetName")]
-    private static unsafe partial int NvmlDeviceGetName(IntPtr device, byte* name, uint length);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetTemperature")]
-    private static partial int NvmlDeviceGetTemperature(IntPtr device, int sensorType, out uint temp);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetPowerUsage")]
-    private static partial int NvmlDeviceGetPowerUsage(IntPtr device, out uint power);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetUtilizationRates")]
-    private static partial int NvmlDeviceGetUtilizationRates(IntPtr device, out NvmlUtilization utilization);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetMemoryInfo")]
-    private static partial int NvmlDeviceGetMemoryInfo(IntPtr device, out NvmlMemory memory);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceSetPowerManagementLimit")]
-    private static partial int NvmlDeviceSetPowerManagementLimit(IntPtr device, uint limitMw);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetPowerManagementLimitConstraints")]
-    private static partial int NvmlDeviceGetPowerManagementLimitConstraints(IntPtr device, out uint minLimit, out uint maxLimit);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceSetGpuLockedClocks")]
-    private static partial int NvmlDeviceSetGpuLockedClocks(IntPtr device, uint minGpuClockMHz, uint maxGpuClockMHz);
-
-    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceResetGpuLockedClocks")]
-    private static partial int NvmlDeviceResetGpuLockedClocks(IntPtr device);
+        return pids.ToList();
+    }
 }

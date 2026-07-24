@@ -10,11 +10,11 @@
         "projectUniqueName": "/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Daemon/UnixGPUForge.Daemon.csproj",
         "projectName": "UnixGPUForge.Daemon",
         "projectPath": "/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Daemon/UnixGPUForge.Daemon.csproj",
-        "packagesPath": "/root/.nuget/packages/",
+        "packagesPath": "/home/omaeou/.nuget/packages/",
         "outputPath": "/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Daemon/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/root/.nuget/NuGet/NuGet.Config"
+          "/home/omaeou/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -50,7 +50,11 @@
           "dependencies": {
             "Microsoft.Extensions.Hosting": {
               "target": "Package",
-              "version": "[11.0.0-preview.5.26302.115, )"
+              "version": "[11.0.0-preview.6.26359.118, )"
+            },
+            "Microsoft.Extensions.Logging": {
+              "target": "Package",
+              "version": "[11.0.0-preview.6.26359.118, )"
             }
           },
           "imports": [
@@ -67,7 +71,7 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[10.0.9, 10.0.9]"
+              "version": "[10.0.10, 10.0.10]"
             }
           ],
           "frameworkReferences": {
@@ -78,7 +82,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.109/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.110/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -362,11 +366,11 @@
         "projectUniqueName": "/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/UnixGPUForge.Shared.csproj",
         "projectName": "UnixGPUForge.Shared",
         "projectPath": "/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/UnixGPUForge.Shared.csproj",
-        "packagesPath": "/root/.nuget/packages/",
+        "packagesPath": "/home/omaeou/.nuget/packages/",
         "outputPath": "/home/omaeou/Рабочий стол/dev/UnixGPUForge/UnixGPUForge.Shared/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/root/.nuget/NuGet/NuGet.Config"
+          "/home/omaeou/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -409,7 +413,7 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[10.0.9, 10.0.9]"
+              "version": "[10.0.10, 10.0.10]"
             }
           ],
           "frameworkReferences": {
@@ -417,7 +421,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.109/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.110/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
