@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using Microsoft.Extensions.Hosting;  // Для BackgroundService
-using Microsoft.Extensions.Logging;  // Для ILogger
 using System.Text.Json;
 using UnixGPUForge.Daemon.Core.Interfaces;
 using UnixGPUForge.Shared.Models;

@@ -7,6 +7,7 @@ using UnixGPUForge.Shared.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHostedService<AutoProfileService>();
+builder.Services.AddHostedService<FanControlService>();
 
 // Разрешаем CORS, чтобы Vue-клиент (обычно висящий на localhost:5173) мог стучаться к демону
 builder.Services.AddCors(options =>
@@ -85,6 +86,37 @@ app.MapPost("/api/profiles", (List<GameProfile> profiles) =>
 {
     var json = JsonSerializer.Serialize(profiles, new JsonSerializerOptions { WriteIndented = true });
     File.WriteAllText("profiles.json", json);
+    return Results.Ok(new { success = true });
+});
+
+// --- GET: Получить кривую кулеров ---
+app.MapGet("/api/fancurve", () =>
+{
+    if (!File.Exists("fancurve.json")) 
+    {
+        // Дефолтная кривая, если файла еще нет
+        var defaultCurve = new List<FanCurvePoint>
+        {
+            new() { Temperature = 40, FanSpeedPercent = 0 },
+            new() { Temperature = 60, FanSpeedPercent = 40 },
+            new() { Temperature = 80, FanSpeedPercent = 80 },
+            new() { Temperature = 90, FanSpeedPercent = 100 }
+        };
+        return Results.Ok(defaultCurve);
+    }
+    
+    var json = File.ReadAllText("fancurve.json");
+    var curve = JsonSerializer.Deserialize<List<FanCurvePoint>>(json);
+    return Results.Ok(curve);
+});
+
+// --- POST: Сохранить кривую кулеров ---
+app.MapPost("/api/fancurve", (List<FanCurvePoint> curve) =>
+{
+    // Обязательно сортируем по температуре перед сохранением, чтобы логика не сломалась
+    var sortedCurve = curve.OrderBy(p => p.Temperature).ToList();
+    var json = JsonSerializer.Serialize(sortedCurve, new JsonSerializerOptions { WriteIndented = true });
+    File.WriteAllText("fancurve.json", json);
     return Results.Ok(new { success = true });
 });
 
