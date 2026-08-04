@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UnixGPUForge.Daemon")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f074fbd55d0ac82e655aa63ef69df4cf1c8776a8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+55e07d3a5504cd5f2cb8792f2e9c93cbd1385300")]
 [assembly: System.Reflection.AssemblyProductAttribute("UnixGPUForge.Daemon")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UnixGPUForge.Daemon")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
