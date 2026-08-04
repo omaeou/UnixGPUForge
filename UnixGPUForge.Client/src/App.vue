@@ -1,18 +1,22 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
 import "./app-style.css";
-import { Menu, Home, Settings, Info } from "@lucide/vue";
+import { ref, onMounted, onUnmounted } from "vue";
+import { Menu, Home, Settings, Info, Cpu, Zap, Activity, MemoryStick, Trash2, Plus } from "lucide-vue-next";
+
+// Импортируем наш компонент кривой
+import FanCurveEditor from "./components/FanCurveEditor.vue";
 
 const gpuData = ref(null);
 const targetPowerLimit = ref(250);
 const targetCoreClock = ref(2500);
-const isSidebarOpen = ref(false);
+const targetMemClock = ref(10000);
+const isSidebarOpen = ref(true);
 let intervalId = null;
 const profiles = ref([]);
 const newProfile = ref({ processName: '', powerLimit: 200, coreClock: 2500, memoryClock: 11000 });
 
+// === ВЗАИМОДЕЙСТВИЕ С API ===
 
-// Загрузка профилей с бэкенда
 const fetchProfiles = async () => {
   try {
     const res = await fetch("http://localhost:5000/api/profiles");
@@ -22,7 +26,6 @@ const fetchProfiles = async () => {
   }
 };
 
-// Сохранение профилей на бэкенд
 const saveProfiles = async () => {
   try {
     await fetch("http://localhost:5000/api/profiles", {
@@ -35,18 +38,44 @@ const saveProfiles = async () => {
   }
 };
 
-// Добавление нового
 const addProfile = () => {
   if (!newProfile.value.processName) return;
   profiles.value.push({ ...newProfile.value });
   saveProfiles();
-  newProfile.value.processName = ''; // Очищаем только имя процесса для удобства
+  newProfile.value.processName = ''; 
 };
 
-// Удаление
 const deleteProfile = (index) => {
   profiles.value.splice(index, 1);
   saveProfiles();
+};
+
+const fetchMetrics = async () => {
+  try {
+    const response = await fetch("http://localhost:5000/api/gpu/metrics");
+    const data = await response.json();
+
+    if (gpuData.value === null) {
+      targetPowerLimit.value = data.maxLimit;
+    }
+    gpuData.value = data;
+  } catch (error) {
+    console.error("Ошибка подключения к демону:", error);
+  }
+};
+
+const applyPowerLimit = async () => {
+  try {
+    const response = await fetch("http://localhost:5000/api/gpu/powerlimit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ watts: parseInt(targetPowerLimit.value) }),
+    });
+    const result = await response.json();
+    if (!result.success) alert(result.message); 
+  } catch (error) {
+    console.error("Ошибка установки лимита:", error);
+  }
 };
 
 const applyClockLock = async () => {
@@ -63,49 +92,33 @@ const applyClockLock = async () => {
   }
 };
 
-const resetClockLock = async () => {
+const applyMemClockLock = async () => {
   try {
-    const response = await fetch("http://localhost:5000/api/gpu/clockreset", { method: "POST" });
-    const result = await response.json();
-    if (result.success) {
-      alert("Частоты сброшены на заводские настройки!");
-    }
-  } catch (error) {
-    console.error("Ошибка сброса частот:", error);
-  }
-};
-
-const fetchMetrics = async () => {
-  try {
-    const response = await fetch("http://localhost:5000/api/gpu/metrics");
-    const data = await response.json();
-
-    // При первой загрузке ставим ползунок на максимальный доступный лимит
-    if (gpuData.value === null) {
-      targetPowerLimit.value = data.maxLimit;
-    }
-
-    // Обновляем метрики
-    gpuData.value = data;
-  } catch (error) {
-    console.error("Ошибка подключения к демону:", error);
-  }
-};
-
-const applyPowerLimit = async () => {
-  try {
-    const response = await fetch("http://localhost:5000/api/gpu/powerlimit", {
+    const response = await fetch("http://localhost:5000/api/gpu/memclocklock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ watts: parseInt(targetPowerLimit.value) }),
+      body: JSON.stringify({ maxClock: parseInt(targetMemClock.value) }),
     });
-
     const result = await response.json();
-    if (!result.success) {
-      alert(result.message); // Выдаст ошибку, если нет прав root
-    }
+    if (!result.success) alert(result.message);
   } catch (error) {
-    console.error("Ошибка установки лимита:", error);
+    console.error("Ошибка лока памяти:", error);
+  }
+};
+
+const applyAllChanges = async () => {
+  await applyPowerLimit();
+  await applyClockLock();
+  await applyMemClockLock();
+};
+
+const resetAllChanges = async () => {
+  try {
+    await fetch("http://localhost:5000/api/gpu/clockreset", { method: "POST" });
+    await fetch("http://localhost:5000/api/gpu/memclockreset", { method: "POST" });
+    alert("Частоты сброшены на заводские настройки!");
+  } catch (error) {
+    console.error("Ошибка сброса частот:", error);
   }
 };
 
@@ -121,141 +134,172 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="home-container">
+  <div class="app-wrapper">
     <!-- Сайдбар -->
-    <div :class="['sidebar', { collapsed: !isSidebarOpen }]">
-      <button class="sidebar-toggle" @click="isSidebarOpen = !isSidebarOpen">
-        <Menu size="28" color="var(--primary-text)" />
-      </button>
+    <aside :class="['glass-sidebar', { collapsed: !isSidebarOpen }]">
+      <div class="sidebar-header">
+        <button class="icon-btn" @click="isSidebarOpen = !isSidebarOpen">
+          <Menu size="24" />
+        </button>
+        <span class="brand-text" v-if="isSidebarOpen">UnixGPUForge</span>
+      </div>
       
-      <ul class="sidebar-menu">
-        <li class="sidebar-item active">
-          <Home size="22" class="sidebar-icon" />
-          <span class="sidebar-text">Главная</span>
-        </li>
-        <li class="sidebar-item">
-          <Settings size="22" class="sidebar-icon" />
-          <span class="sidebar-text">Настройки</span>
-        </li>
-        <li class="sidebar-item">
-          <Info size="22" class="sidebar-icon" />
-          <span class="sidebar-text">О программе</span>
-        </li>
-      </ul>
-    </div>
+      <nav class="sidebar-menu">
+        <a href="#" class="menu-item active">
+          <Home size="20" />
+          <span v-if="isSidebarOpen">Dashboard</span>
+        </a>
+        <a href="#" class="menu-item">
+          <Settings size="20" />
+          <span v-if="isSidebarOpen">Settings</span>
+        </a>
+        <a href="#" class="menu-item">
+          <Info size="20" />
+          <span v-if="isSidebarOpen">About</span>
+        </a>
+      </nav>
+    </aside>
 
     <!-- Основной контент -->
-    <div class="home-content">
-      
-      <!-- Карточка телеметрии -->
-      <div v-if="gpuData" class="GpuInfo-card">
-        <h2>GPU: {{ gpuData.name }}</h2>
-        <div class="GpuMetrics-column">
-          <p>Temp: {{ gpuData.temperature }}°C</p>
-          <p>Power Usage: {{ gpuData.powerUsage }} W</p>
-          <p>Core Load: {{ gpuData.coreLoad }}%</p>
-          <p>VRAM: {{ gpuData.vramUsed }} / {{ gpuData.vramTotal }} MB</p>
-        </div>
-      </div>
-
-      <!-- Карточка ручного тюнинга -->
-      <div v-if="gpuData" class="control-panel-card" style="margin-top: 2rem;">
-        <div class="params-element">
-          <div class="param-header">
-            <h3 class="param-title">Ручной тюнинг</h3>
-          </div>
-          
-          <div class="setting-container">
-            <div class="slider-row">
-              <label for="power-limit-slider" class="slider-label">
-                Power Limit: <span class="highlight">{{ targetPowerLimit }} W</span>
-              </label>
-              <input
-                id="power-limit-slider"
-                type="range"
-                v-model="targetPowerLimit"
-                :min="gpuData.minLimit"
-                :max="gpuData.maxLimit"
-                class="slider"
-              />
-            </div>
-            <div class="limit-info">Лимиты: {{ gpuData.minLimit }}W — {{ gpuData.maxLimit }}W</div>
-          </div>
-          
-          <div class="setting-container">
-            <div class="slider-row">
-              <label for="core-clock-slider" class="slider-label">
-                Core Clock Limit: <span class="highlight">{{ targetCoreClock }} MHz</span>
-              </label>
-              <input
-                id="core-clock-slider"
-                type="range"
-                v-model="targetCoreClock"
-                min="1000"
-                max="3000"
-                step="15" 
-                class="slider"
-              />
-            </div>
-            <div class="limit-info">Фиксация максимальной частоты ядра (шаг 15 MHz)</div>
-          </div>
-
-          <div class="setting-container">
-            <div class="slider-row">
-              <label for="mem-clock-slider" class="slider-label">
-                Memory Clock: <span class="highlight">{{ targetMemClock }} MHz</span>
-              </label>
-              <input
-                id="mem-clock-slider"
-                type="range"
-                v-model="targetMemClock"
-                min="5000"
-                max="12500"
-                step="50" 
-                class="slider"
-              />
-            </div>
-            <div class="limit-info">Абсолютная частота видеопамяти (GDDR6X)</div>
-          </div>
-
-          <div class="action-row" style="gap: 15px; margin-top: 1.5rem;">
-            <button @click="resetAllChanges" class="btn secondary-btn" style="background: transparent; border: 1px solid var(--border-color); color: var(--primary-text);">
-              Reset Clocks
-            </button>
-            <button @click="applyAllChanges" class="btn">
-              Apply All Changes
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Карточка автоматических профилей -->
-      <div v-if="gpuData" class="GpuInfo-card" style="margin-top: 2rem;">
-        <h2>Автоматические профили игр</h2>
+    <main class="main-content">
+      <div class="content-container" v-if="gpuData">
         
-        <div class="setting-container" v-for="(profile, index) in profiles" :key="index" style="margin-bottom: 0.5rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
-          <div class="slider-row" style="justify-content: flex-start; gap: 2rem; align-items: center;">
-            <strong style="width: 150px; color: var(--primary);">{{ profile.processName }}</strong>
-            <span>PL: {{ profile.powerLimit }}W</span>
-            <span>Core: {{ profile.coreClock }}MHz</span>
-            <span>Mem: {{ profile.memoryClock }}MHz</span>
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">{{ gpuData.name }}</h1>
+            <p class="page-subtitle">Hardware Telemetry & Control</p>
+          </div>
+        </header>
+
+        <!-- Виджеты телеметрии -->
+        <section class="telemetry-grid">
+          <div class="glass-widget">
+            <div class="widget-icon temp"><Activity size="24" /></div>
+            <div class="widget-data">
+              <span class="widget-value">{{ gpuData.temperature }}<small>°C</small></span>
+              <span class="widget-label">Temperature</span>
+            </div>
+          </div>
+          <div class="glass-widget">
+            <div class="widget-icon power"><Zap size="24" /></div>
+            <div class="widget-data">
+              <span class="widget-value">{{ gpuData.powerUsage }}<small>W</small></span>
+              <span class="widget-label">Power Draw</span>
+            </div>
+          </div>
+          <div class="glass-widget">
+            <div class="widget-icon core"><Cpu size="24" /></div>
+            <div class="widget-data">
+              <span class="widget-value">{{ gpuData.coreLoad }}<small>%</small></span>
+              <span class="widget-label">Core Load</span>
+            </div>
+          </div>
+          <div class="glass-widget">
+            <div class="widget-icon mem"><MemoryStick size="24" /></div>
+            <div class="widget-data">
+              <span class="widget-value">{{ gpuData.vramUsed }}<small>MB</small></span>
+              <span class="widget-label">VRAM Usage</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="two-column-layout">
+          <!-- Ручной тюнинг -->
+          <section class="glass-card tuning-section">
+            <h2 class="card-title">Manual Tuning</h2>
             
-            <button @click="deleteProfile(index)" class="btn secondary-btn" style="margin-left: auto; padding: 0.4rem 1rem; font-size: 0.9rem; background: transparent; border: 1px solid #f38ba8; color: #f38ba8;">
-              Удалить
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="power-limit-slider">Power Limit</label>
+                <span class="slider-val">{{ targetPowerLimit }} W</span>
+              </div>
+              <input id="power-limit-slider" type="range" v-model="targetPowerLimit" :min="gpuData.minLimit" :max="gpuData.maxLimit" class="premium-slider" />
+              <div class="slider-bounds"><span>{{ gpuData.minLimit }} W</span><span>{{ gpuData.maxLimit }} W</span></div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="core-clock-slider">Core Clock Limit</label>
+                <span class="slider-val">{{ targetCoreClock }} MHz</span>
+              </div>
+              <input id="core-clock-slider" type="range" v-model="targetCoreClock" min="1000" max="3000" step="15" class="premium-slider" />
+              <div class="slider-bounds"><span>1000 MHz</span><span>3000 MHz</span></div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="mem-clock-slider">Memory Clock</label>
+                <span class="slider-val">{{ targetMemClock }} MHz</span>
+              </div>
+              <input id="mem-clock-slider" type="range" v-model="targetMemClock" min="5000" max="12500" step="50" class="premium-slider" />
+              <div class="slider-bounds"><span>5000 MHz</span><span>12500 MHz</span></div>
+            </div>
+
+            <div class="card-actions">
+              <button @click="resetAllChanges" class="btn btn-glass">Reset to Default</button>
+              <button @click="applyAllChanges" class="btn btn-accent">Apply Settings</button>
+            </div>
+          </section>
+
+          <!-- Fan Curve (Компонент) -->
+          <section class="fan-curve-section">
+            <FanCurveEditor />
+          </section>
+        </div>
+
+        <!-- Автоматические профили -->
+        <section class="glass-card profiles-section">
+          <h2 class="card-title">Auto-Profiles</h2>
+          <p class="card-subtitle" style="margin-bottom: 20px;">Динамическое переключение профилей по имени процесса</p>
+          
+          <div class="profiles-list">
+            <div class="profile-row" v-for="(profile, index) in profiles" :key="index">
+              <div class="profile-name">
+                <div class="process-badge">{{ profile.processName.charAt(0).toUpperCase() }}</div>
+                <strong>{{ profile.processName }}</strong>
+              </div>
+              <div class="profile-stats">
+                <span><Zap size="14"/> {{ profile.powerLimit }}W</span>
+                <span><Cpu size="14"/> {{ profile.coreClock }}MHz</span>
+                <span><MemoryStick size="14"/> {{ profile.memoryClock }}MHz</span>
+              </div>
+              <button @click="deleteProfile(index)" class="icon-btn danger" title="Delete profile">
+                <Trash2 size="18" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Форма добавления -->
+          <div class="add-profile-form">
+            <div class="input-wrap process-wrap">
+              <label for="new-proc">Process Name</label>
+              <input id="new-proc" v-model="newProfile.processName" placeholder="e.g. dota2" />
+            </div>
+            <div class="input-wrap">
+              <label for="new-pl">PL (W)</label>
+              <input id="new-pl" v-model="newProfile.powerLimit" type="number" />
+            </div>
+            <div class="input-wrap">
+              <label for="new-core">Core (MHz)</label>
+              <input id="new-core" v-model="newProfile.coreClock" type="number" />
+            </div>
+            <div class="input-wrap">
+              <label for="new-mem">Mem (MHz)</label>
+              <input id="new-mem" v-model="newProfile.memoryClock" type="number" />
+            </div>
+            <button @click="addProfile" class="btn btn-accent icon-only">
+              <Plus size="20" />
             </button>
           </div>
-        </div>
+        </section>
 
-        <!-- Форма добавления нового профиля -->
-        <div class="setting-container" style="display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
-          <input v-model="newProfile.processName" placeholder="Процесс (напр. dota2)" class="input-field" style="flex: 2;" />
-          <input v-model="newProfile.powerLimit" type="number" placeholder="PL (W)" class="input-field" style="flex: 1;" />
-          <input v-model="newProfile.coreClock" type="number" placeholder="Core (MHz)" class="input-field" style="flex: 1;" />
-          <input v-model="newProfile.memoryClock" type="number" placeholder="Mem (MHz)" class="input-field" style="flex: 1;" />
-          <button @click="addProfile" class="btn" style="flex: 1;">Добавить</button>
-        </div>
       </div>
-
-    </div>
+      
+      <!-- Лоадер, если нет связи с демоном -->
+      <div v-else class="loading-state">
+        <div class="spinner"></div>
+        <p>Connecting to UnixGPUForge Daemon...</p>
+      </div>
+    </main>
   </div>
 </template>

@@ -10,4 +10,7 @@ public interface IGpuProvider
     bool ResetGpuLockedClocks();
     bool SetMemoryLockedClocks(uint minMHz, uint maxMHz);
     bool ResetMemoryLockedClocks();
+
+    bool SetFanSpeed(uint fanIndex, uint speedPercent);
+    bool ResetFanSpeed(uint fanIndex);
 }

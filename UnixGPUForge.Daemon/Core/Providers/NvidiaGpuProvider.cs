@@ -84,6 +84,11 @@ public partial class NvidiaGpuProvider : IGpuProvider
     [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceGetComputeRunningProcesses_v3")]
     private static partial int NvmlDeviceGetComputeRunningProcesses(IntPtr device, ref uint infoCount, [Out] nvmlProcessInfo_t[] infos); //[cite: 1]
 
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceSetFanSpeed_v2")]
+    private static partial int NvmlDeviceSetFanSpeed(IntPtr device, uint fan, uint speed);
+
+    [LibraryImport(NvmlLibrary, EntryPoint = "nvmlDeviceSetDefaultFanSpeed_v2")]
+    private static partial int NvmlDeviceSetDefaultFanSpeed(IntPtr device, uint fan);
     public NvidiaGpuProvider()
     {
         if (NvmlInit() != 0)
@@ -153,6 +158,17 @@ public partial class NvidiaGpuProvider : IGpuProvider
         GC.SuppressFinalize(this);
     }
 
+    public bool SetFanSpeed(uint fanIndex, uint speedPercent)
+    {
+        // speedPercent от 0 до 100
+        return NvmlDeviceSetFanSpeed(_deviceHandle, fanIndex, speedPercent) == 0;
+    }
+
+    public bool ResetFanSpeed(uint fanIndex)
+    {
+        // Возвращаем управление автоматике драйвера
+        return NvmlDeviceSetDefaultFanSpeed(_deviceHandle, fanIndex) == 0;
+    }
     public List<uint> GetRunningPids()
     {
         var pids = new HashSet<uint>();
