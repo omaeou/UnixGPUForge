@@ -10,17 +10,14 @@ public class FanControlService : BackgroundService
     private readonly ILogger<FanControlService> _logger;
 
     private uint _lastAppliedSpeed = 0;
-    // Гистерезис: меняем скорость только если разница больше 3%
     private readonly uint _hysteresisThreshold = 3;
-
-    // Базовая хардкод-кривая (позже вынесем её загрузку из JSON, как ты сделал с профилями)
     private List<FanCurvePoint> _globalCurve = new()
     {
-        new FanCurvePoint { Temperature = 30, FanSpeedPercent = 0 },   // Zero RPM mode
-        new FanCurvePoint { Temperature = 50, FanSpeedPercent = 30 },  // Легкий старт
-        new FanCurvePoint { Temperature = 65, FanSpeedPercent = 50 },  // Средняя нагрузка
-        new FanCurvePoint { Temperature = 75, FanSpeedPercent = 80 },  // Пошла жара
-        new FanCurvePoint { Temperature = 85, FanSpeedPercent = 100 }  // Троттлинг близко
+        new FanCurvePoint { Temperature = 30, FanSpeedPercent = 0 }, 
+        new FanCurvePoint { Temperature = 50, FanSpeedPercent = 30 },
+        new FanCurvePoint { Temperature = 65, FanSpeedPercent = 50 },
+        new FanCurvePoint { Temperature = 75, FanSpeedPercent = 80 },
+        new FanCurvePoint { Temperature = 85, FanSpeedPercent = 100 }
     };
 
     public FanControlService(IGpuProvider gpu, ILogger<FanControlService> logger)
@@ -31,41 +28,58 @@ public class FanControlService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("[FAN] Служба управления вентиляторами запущена.");
+        await Task.Delay(1000, stoppingToken);
+
+        uint fanCount = 1; 
+        try
+        {
+            fanCount = _gpu.GetFanCount();
+            _logger.LogInformation($"FanControlService initialized. Detected {fanCount} cooling fan(s).");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch fan count dynamically. Defaulting to 1 fan.");
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            // Загружаем кривую из файла на каждой итерации (или раз в N секунд)
-            if (File.Exists("fancurve.json"))
-            {
-                var json = File.ReadAllText("fancurve.json");
-                _globalCurve = JsonSerializer.Deserialize<List<FanCurvePoint>>(json) ?? _globalCurve;
-            }
-
             try
             {
                 var telemetry = _gpu.GetTelemetry();
+                
                 uint targetSpeed = CalculateFanSpeed(telemetry.Temperature, _globalCurve);
 
-                // Защита от дребезга (гистерезис)
                 if (Math.Abs((int)targetSpeed - (int)_lastAppliedSpeed) >= _hysteresisThreshold)
                 {
-                    // В NVML кулеры индексируются (обычно 0 и 1).
-                    // Для надежности применяем к обоим (можно динамически получать их количество, но пока так)
-                    _gpu.SetFanSpeed(0, targetSpeed);
-                    _gpu.SetFanSpeed(1, targetSpeed);
+                    bool allSuccess = true;
+                    
+                    for (uint i = 0; i < fanCount; i++)
+                    {
+                        if (!_gpu.SetFanSpeed(i, targetSpeed))
+                        {
+                            allSuccess = false;
+                        }
+                    }
 
-                    _lastAppliedSpeed = targetSpeed;
-                    _logger.LogDebug($"[FAN] Температура: {telemetry.Temperature}°C. Скорость: {targetSpeed}%");
+                    // Если драйвер принял команду, сохраняем стейт
+                    if (allSuccess)
+                    {
+                        _logger.LogInformation($"Fan speed successfully updated to {targetSpeed}% (Temp: {telemetry.Temperature}°C)");
+                        _lastAppliedSpeed = targetSpeed;
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Failed to apply {targetSpeed}%. Driver rejected the NVML command.");
+                        // Не обновляем _lastAppliedSpeed, чтобы сервис попытался снова на следующей итерации
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[FAN] Ошибка поллинга кулеров: {ex.Message}");
+                _logger.LogError(ex, "Error applying dynamic fan curve.");
             }
 
-            // Поллинг каждую секунду для быстрой реакции на нагрев
-            await Task.Delay(1000, stoppingToken);
+            await Task.Delay(2000, stoppingToken);
         }
     }
 
@@ -73,15 +87,12 @@ public class FanControlService : BackgroundService
     {
         var sortedCurve = curve.OrderBy(p => p.Temperature).ToList();
 
-        // Ниже минимальной точки
         if (currentTemp <= sortedCurve.First().Temperature)
             return sortedCurve.First().FanSpeedPercent;
 
-        // Выше максимальной точки
         if (currentTemp >= sortedCurve.Last().Temperature)
             return sortedCurve.Last().FanSpeedPercent;
 
-        // Поиск интервала и линейная интерполяция
         for (int i = 0; i < sortedCurve.Count - 1; i++)
         {
             var p1 = sortedCurve[i];
@@ -97,6 +108,6 @@ public class FanControlService : BackgroundService
             }
         }
 
-        return 50; // Fallback на 50% если что-то пошло не так
+        return 50; 
     }
 }

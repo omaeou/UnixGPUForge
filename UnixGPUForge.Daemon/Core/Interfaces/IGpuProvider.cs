@@ -13,4 +13,5 @@ public interface IGpuProvider
 
     bool SetFanSpeed(uint fanIndex, uint speedPercent);
     bool ResetFanSpeed(uint fanIndex);
+    uint GetFanCount();
 }
