@@ -1,0 +1,48 @@
+
+[Bb]in/
+[Oo]bj/
+
+*.log
+*.user
+*.userosscache
+*.sln.docstates
+
+# Локальные файлы конфигурации
+UnixGPUForge.Daemon/profiles.json
+UnixGPUForge.Daemon/fancurve.json
+
+
+# Зависимости и сборка фронта
+node_modules/
+dist/
+dist-ssr/
+.npm/
+
+# Логи пакетов
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Локальные переменные окружения
+
+# ==========================================
+# IDE / Редакторы (VS Code, Rider, Visual Studio)
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.vs/
+*.suo
+*.ide
+
+# ==========================================
+# ОС (Windows / macOS / Linux)
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+$RECYCLE.BIN/
+*~
