@@ -1,36 +1,49 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using UnixGPUForge.Shared.Models;
+using UnixGPUForge.Daemon.Core.Interfaces;
 
 namespace UnixGPUForge.Daemon.Endpoints;
 
-public static class ProfileEndpoints
+public static class GpuEndpoints
 {
-    private const string FilePath = "profiles.json";
-
-    public static void MapProfileEndpoints(this IEndpointRouteBuilder app)
+    public static void MapGpuEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/profiles");
+        var group = app.MapGroup("/api/gpu");
 
-        group.MapGet("/", () =>
+        group.MapGet("/metrics", (IGpuProvider gpu) => Results.Ok(gpu.GetTelemetry()));
+
+        group.MapPost("/powerlimit", (IGpuProvider gpu, PowerLimitRequest req) =>
         {
-            if (!File.Exists(FilePath))
-            {
-                return Results.Ok(new List<GameProfile>());
-            }
-
-            var json = File.ReadAllText(FilePath);
-            var profiles = JsonSerializer.Deserialize<List<GameProfile>>(json) ?? new List<GameProfile>();
-            return Results.Ok(profiles);
+            var success = gpu.SetPowerLimit(req.Watts);
+            return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error applying power limit" });
         });
 
-        group.MapPost("/", (List<GameProfile> profiles) =>
+        group.MapPost("/clocklock", (IGpuProvider gpu, ClockLockRequest req) =>
         {
-            var json = JsonSerializer.Serialize(profiles, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(FilePath, json);
-            return Results.Ok(new { success = true });
+            var success = gpu.SetCoreClockLimit(req.MaxClock);
+            return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error locking core clock" });
+        });
+
+        group.MapPost("/clockreset", (IGpuProvider gpu) =>
+        {
+            var success = gpu.ResetCoreClockLimit();
+            return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error resetting core clock" });
+        });
+
+        group.MapPost("/memclocklock", (IGpuProvider gpu, ClockLockRequest req) =>
+        {
+            var success = gpu.SetMemoryClockOffset(req.MaxClock);
+            return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error locking memory clock" });
+        });
+
+        group.MapPost("/memclockreset", (IGpuProvider gpu) =>
+        {
+            var success = gpu.ResetMemoryClockOffset();
+            return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error resetting memory clock" });
         });
     }
 }
+
+public record PowerLimitRequest(uint Watts);
+public record ClockLockRequest(uint MaxClock);
