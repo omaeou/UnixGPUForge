@@ -21,25 +21,25 @@ public static class GpuEndpoints
 
         group.MapPost("/clocklock", (IGpuProvider gpu, ClockLockRequest req) =>
         {
-            var success = gpu.SetCoreClockLimit(req.MaxClock);
+            var success = gpu.SetGpuLockedClocks(req.MaxClock, req.MaxClock);
             return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error locking core clock" });
         });
 
         group.MapPost("/clockreset", (IGpuProvider gpu) =>
         {
-            var success = gpu.ResetCoreClockLimit();
+            var success = gpu.ResetGpuLockedClocks();
             return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error resetting core clock" });
         });
 
         group.MapPost("/memclocklock", (IGpuProvider gpu, ClockLockRequest req) =>
         {
-            var success = gpu.SetMemoryClockOffset(req.MaxClock);
+            var success = gpu.SetMemoryLockedClocks(req.MaxClock, req.MaxClock);
             return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error locking memory clock" });
         });
 
         group.MapPost("/memclockreset", (IGpuProvider gpu) =>
         {
-            var success = gpu.ResetMemoryClockOffset();
+            var success = gpu.ResetMemoryLockedClocks();
             return success ? Results.Ok(new { success = true }) : Results.BadRequest(new { success = false, message = "Error resetting memory clock" });
         });
     }
