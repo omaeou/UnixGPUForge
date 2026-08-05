@@ -1,5 +1,5 @@
 # UnixGPUForge
-*[Read in English](readme.en.md)*
+*[Read in English](readme.md)*
 
 > **Продвинутый демон управления питанием, разгоном и телеметрией GPU для Linux.**
 
