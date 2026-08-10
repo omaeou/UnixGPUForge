@@ -10,7 +10,7 @@
 
 UnixGPUForge is a robust, daemonized system utility designed to bridge the gap in advanced GPU power management and telemetry on Linux environments. Unlike traditional CLI-only tools or monolithic GUI applications, UnixGPUForge operates as a highly privileged background service with a decoupled, lightweight web-based client, ensuring minimal overhead and maximum system stability.
 
-## 🏗 System Architecture
+##  System Architecture
 
 The project is strictly divided into a Client-Server architecture to maintain system security and stability while interacting with low-level kernel interfaces.
 
@@ -23,14 +23,14 @@ The project is strictly divided into a Client-Server architecture to maintain sy
    - A reactive, zero-overhead frontend that communicates with the local daemon.
    - Provides real-time visualization of GPU metrics (Temperatures, Core/Memory Clocks, Power Draw, Fan Speeds).
 
-## ✨ Key Features
+##  Key Features
 
 - **Hardware-Level Access:** Direct interfacing with NVIDIA GPUs (`NvidiaGpuProvider`) for precise telemetry and tuning.
 - **Auto-Profiling Service:** Dynamic, rule-based profile switching (`AutoProfileService`) based on current system load or running applications (`GameProfile`).
 - **Headless Operation:** The daemon maintains custom fan curves and undervolting states even when no X11/Wayland session is active.
 - **Cross-Driver Abstraction:** Designed with extensibility in mind via the `IGpuProvider` interface to seamlessly support different vendor architectures in the future.
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 - Linux OS (Kernel 5.15+)
